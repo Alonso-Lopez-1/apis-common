@@ -3,12 +3,11 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <vertx.version>4.5.10</vertx.version>
   </properties>
 
   <groupId>jp.co.sony.csl.dcoes.apis</groupId>
   <artifactId>apis-common</artifactId>
-  <version>3.0.0</version>
+  <version>4.5.10</version>
 
   <name>APIS COMMON</name>
 
@@ -28,24 +27,20 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
-      <version>${vertx.version}</version>
     </dependency>
     <!-- SLF4J API for logging (required by Vert.x 4) -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.9</version>
     </dependency>
     <!-- Logback Classic as SLF4J implementation -->
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.4.11</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-unit</artifactId>
-      <version>${vertx.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -89,3 +84,4 @@
     </pluginManagement>
   </build>
 </project>
+
