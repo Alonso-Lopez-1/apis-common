@@ -1,6 +1,6 @@
 # apis-common
-![OpenSSF Scorecard](https://www.bestpractices.dev/projects/9993/badge)
-![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hyphae/apis-common/badge)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9993)]
+[![OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/hyphae/apis-common)]
 
 Common source code for building apis-main, apis-web, apis-ccc and apis-log.
 

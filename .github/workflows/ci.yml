@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Maven test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          distribution: temurin
+          java-version: "11"
+          cache: maven
+
+      - name: Checkout APIS BOM
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: hyphae/apis-bom
+          ref: 0b31eeea63f26aa984eeed7668967263b90915c6 # apis-bom version 3.4.1
+          path: apis-bom
+          persist-credentials: false
+
+      - name: Install APIS BOM locally
+        run: mvn -B -f apis-bom/pom.xml -DskipTests install
+
+      - name: Verify
+        run: mvn -B verify
