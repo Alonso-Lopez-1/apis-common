@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.core.shareddata.AsyncMap;
 import jp.co.sony.csl.dcoes.apis.common.ServiceAddress;
-import jp.co.sony.csl.dcoes.apis.common.util.JulUtil;
+import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil;
 
 /**
  * This is the main common Verticle for APIS programs.
@@ -201,7 +201,7 @@ public abstract class AbstractStarter extends AbstractVerticle {
 		vertx.eventBus().<String>consumer(ServiceAddress.multicastLogHandlerLevel(), req -> {
 			try {
 				if (log.isInfoEnabled()) log.info("setting multicast log level to : " + req.body() + " ...");
-				JulUtil.setRootMulticastHandlerLevel(req.body());
+				LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
 				req.reply("ok");
 			} catch (Exception e) {
 				log.error("Failed to set multicast log level", e);
