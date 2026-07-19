@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import io.vertx.core.shareddata.AsyncMap;
 import jp.co.sony.csl.dcoes.apis.common.ServiceAddress;
 import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil;
+import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil.SetMulticastLevelResult;
 
 /**
  * This is the main common Verticle for APIS programs.
@@ -20,6 +21,10 @@ import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil;
 public abstract class AbstractStarter extends AbstractVerticle {
 	private static final Logger log = LoggerFactory.getLogger(AbstractStarter.class);
 
+	// Event Bus failure codes using HTTP-style semantics.
+    // These are not HTTP responses unless mapped by an HTTP-facing caller.
+    private static final int INVALID_LEVEL_FAILURE_CODE = 400;
+    private static final int APPENDER_UNAVAILABLE_FAILURE_CODE = 503;
 	/**
 	 * Sets APIS program version (string).
 	 * The value is {@value}.
@@ -185,6 +190,8 @@ public abstract class AbstractStarter extends AbstractVerticle {
 	 * Message header : None
 	 * Response : {@code "ok"} if successful
 	 * 　　　　　   Fail if error occurs.
+	 * Note : This consumer is only registered if a MULTICAST appender is configured in Logback.
+	 *        Services without MULTICAST (e.g., receiver-only apis-log) will not register this handler.
 	 * @param completionHandler the completion handler
 	 * {@link io.vertx.core.eventbus.EventBus} サービス起動.
 	 * アドレス : {@link ServiceAddress#multicastLogHandlerLevel()}
@@ -195,14 +202,43 @@ public abstract class AbstractStarter extends AbstractVerticle {
 	 * メッセージヘッダ : なし
 	 * レスポンス : 成功したら {@code "ok"}
 	 * 　　　　　   エラーが起きたら fail.
+	 * 注 : このコンシューマは Logback で MULTICAST アペンダが設定されている場合のみ登録される.
+	 *     MULTICAST がない (例: 受信専用 apis-log) サービスではこのハンドラを登録しない.
 	 * @param completionHandler the completion handler
 	 */
 	private void startMulticastLogHandlerLevelService_(Handler<AsyncResult<Void>> completionHandler) {
+		// Check if MULTICAST appender is available before registering the consumer
+		// This prevents receiver-only services (like apis-log) from registering an unnecessary handler
+		if (!LogbackMulticastLevelUtil.isMulticastAppenderAvailable()) {
+			if (log.isInfoEnabled()) {
+				log.info("MULTICAST appender is not configured; " +
+				        "multicast level-control service will not be registered");
+			}
+			// Complete successfully even though handler registration is skipped
+			completionHandler.handle(Future.succeededFuture());
+			return;
+		}
+		
 		vertx.eventBus().<String>consumer(ServiceAddress.multicastLogHandlerLevel(), req -> {
 			try {
 				if (log.isInfoEnabled()) log.info("setting multicast log level to : " + req.body() + " ...");
-				LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
-				req.reply("ok");
+				SetMulticastLevelResult result = LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
+				switch (result) {
+				case UPDATED:
+				case RESTORED:
+					req.reply("ok");
+					break;
+				case INVALID_LEVEL:
+					req.fail(INVALID_LEVEL_FAILURE_CODE, "Invalid multicast log level: " + req.body());
+					break;
+				case ROOT_LOGGER_UNAVAILABLE:
+				case APPENDER_NOT_FOUND:
+				case APPENDER_TYPE_MISMATCH:
+				default:
+					log.warn("Failed to set multicast log level due to configuration state: " + result);
+					req.fail(APPENDER_UNAVAILABLE_FAILURE_CODE, "MULTICAST appender unavailable");
+					break;
+				}
 			} catch (Exception e) {
 				log.error("Failed to set multicast log level", e);
 				req.fail(-1, e.getMessage());
