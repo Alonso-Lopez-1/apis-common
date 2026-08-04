@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import io.vertx.core.shareddata.AsyncMap;
 import jp.co.sony.csl.dcoes.apis.common.ServiceAddress;
 import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil;
-import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil.SetMulticastLevelResult;
 
 /**
  * This is the main common Verticle for APIS programs.
@@ -222,23 +221,13 @@ public abstract class AbstractStarter extends AbstractVerticle {
 		vertx.eventBus().<String>consumer(ServiceAddress.multicastLogHandlerLevel(), req -> {
 			try {
 				if (log.isInfoEnabled()) log.info("setting multicast log level to : " + req.body() + " ...");
-				SetMulticastLevelResult result = LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
-				switch (result) {
-				case UPDATED:
-				case RESTORED:
-					req.reply("ok");
-					break;
-				case INVALID_LEVEL:
-					req.fail(INVALID_LEVEL_FAILURE_CODE, "Invalid multicast log level: " + req.body());
-					break;
-				case ROOT_LOGGER_UNAVAILABLE:
-				case APPENDER_NOT_FOUND:
-				case APPENDER_TYPE_MISMATCH:
-				default:
-					log.warn("Failed to set multicast log level due to configuration state: " + result);
-					req.fail(APPENDER_UNAVAILABLE_FAILURE_CODE, "MULTICAST appender unavailable");
-					break;
-				}
+				LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
+				req.reply("ok");
+			} catch (IllegalArgumentException e) {
+				req.fail(INVALID_LEVEL_FAILURE_CODE, e.getMessage());
+			} catch (IllegalStateException e) {
+				log.warn("Failed to set multicast log level due to configuration state: " + e.getMessage());
+				req.fail(APPENDER_UNAVAILABLE_FAILURE_CODE, "MULTICAST appender unavailable");
 			} catch (Exception e) {
 				log.error("Failed to set multicast log level", e);
 				req.fail(-1, e.getMessage());
