@@ -75,27 +75,6 @@ public final class LogbackMulticastLevelUtil {
 	}
 
 	private static Level levelFromName_(String levelName) {
-		String trimmed = levelName.trim();
-
-		if (trimmed.equalsIgnoreCase("ERROR")) {
-			return Level.ERROR;
-		}
-		if (trimmed.equalsIgnoreCase("WARN")) {
-			return Level.WARN;
-		}
-		if (trimmed.equalsIgnoreCase("INFO")) {
-			return Level.INFO;
-		}
-		if (trimmed.equalsIgnoreCase("DEBUG")) {
-			return Level.DEBUG;
-		}
-		if (trimmed.equalsIgnoreCase("TRACE")) {
-			return Level.TRACE;
-		}
-		if (trimmed.equalsIgnoreCase("OFF")) {
-			return Level.OFF;
-		}
-
-		return null;
+		return Level.toLevel(levelName.trim(), null);
 	}
 }
