@@ -57,5 +57,12 @@ public class MulticastAppenderTest {
 		appender.doAppend(event);
 	}
 
+	@Test public void setStringLevelParsesAndStoresLevel() {
+		MulticastAppender appender = new MulticastAppender();
+		appender.setContext(new LoggerContext());
+		appender.setName("MULTICAST");
+		appender.setLevelThresholdByName("DEBUG");
+		assertTrue(appender.getLevelThreshold() == Level.DEBUG);
+	}
 
 }

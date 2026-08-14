@@ -35,6 +35,17 @@ public class MulticastAppender extends AppenderBase<ILoggingEvent> {
 
 	/** Sets the runtime level threshold (events below it are dropped). {@code null} disables filtering. */
 	public void setLevelThreshold(Level threshold) { this.threshold = threshold; }
+	public void setLevelThresholdByName(String levelName) {
+		if (levelName == null || levelName.trim().isEmpty()) {
+			restoreStartupThreshold();
+			return;
+		}
+		Level parsed = Level.toLevel(levelName.trim(), null);
+		if (parsed == null) {
+			throw new IllegalArgumentException("Invalid multicast log level: " + levelName);
+		}
+		this.threshold = parsed;
+	}
 	public Level getLevelThreshold() { return threshold; }
 	/** Restores the threshold that was in effect when the appender started. */
 	public void restoreStartupThreshold() { this.threshold = startupThreshold; }

@@ -5,11 +5,15 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.core.shareddata.AsyncMap;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
+import jp.co.sony.csl.dcoes.apis.common.util.logback.MulticastAppender;
 import jp.co.sony.csl.dcoes.apis.common.ServiceAddress;
-import jp.co.sony.csl.dcoes.apis.common.util.logback.LogbackMulticastLevelUtil;
 
 /**
  * This is the main common Verticle for APIS programs.
@@ -23,7 +27,6 @@ public abstract class AbstractStarter extends AbstractVerticle {
 	// Event Bus failure codes using HTTP-style semantics.
     // These are not HTTP responses unless mapped by an HTTP-facing caller.
     private static final int INVALID_LEVEL_FAILURE_CODE = 400;
-    private static final int APPENDER_UNAVAILABLE_FAILURE_CODE = 503;
 	/**
 	 * Sets APIS program version (string).
 	 * The value is {@value}.
@@ -206,28 +209,36 @@ public abstract class AbstractStarter extends AbstractVerticle {
 	 * @param completionHandler the completion handler
 	 */
 	private void startMulticastLogHandlerLevelService_(Handler<AsyncResult<Void>> completionHandler) {
-		// Check if MULTICAST appender is available before registering the consumer
-		// This prevents receiver-only services (like apis-log) from registering an unnecessary handler
-		if (!LogbackMulticastLevelUtil.isMulticastAppenderAvailable()) {
+		ILoggerFactory loggerFactory = LoggerFactory.getILoggerFactory();
+		if (!(loggerFactory instanceof LoggerContext)) {
+			if (log.isInfoEnabled()) {
+				log.info("Logback LoggerContext is unavailable; " +
+				        "multicast level-control service will not be registered");
+			}
+			completionHandler.handle(Future.succeededFuture());
+			return;
+		}
+
+		LoggerContext context = (LoggerContext) loggerFactory;
+		ch.qos.logback.classic.Logger root = context.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+		Appender<ILoggingEvent> appender = root.getAppender("MULTICAST");
+		if (!(appender instanceof MulticastAppender)) {
 			if (log.isInfoEnabled()) {
 				log.info("MULTICAST appender is not configured; " +
 				        "multicast level-control service will not be registered");
 			}
-			// Complete successfully even though handler registration is skipped
 			completionHandler.handle(Future.succeededFuture());
 			return;
 		}
+		final MulticastAppender multicastAppender = (MulticastAppender) appender;
 		
 		vertx.eventBus().<String>consumer(ServiceAddress.multicastLogHandlerLevel(), req -> {
 			try {
 				if (log.isInfoEnabled()) log.info("setting multicast log level to : " + req.body() + " ...");
-				LogbackMulticastLevelUtil.setMulticastAppenderLevel(req.body());
+				multicastAppender.setLevelThresholdByName(req.body());
 				req.reply("ok");
 			} catch (IllegalArgumentException e) {
 				req.fail(INVALID_LEVEL_FAILURE_CODE, e.getMessage());
-			} catch (IllegalStateException e) {
-				log.warn("Failed to set multicast log level due to configuration state: " + e.getMessage());
-				req.fail(APPENDER_UNAVAILABLE_FAILURE_CODE, "MULTICAST appender unavailable");
 			} catch (Exception e) {
 				log.error("Failed to set multicast log level", e);
 				req.fail(-1, e.getMessage());
